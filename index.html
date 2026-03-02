@@ -1,521 +1,603 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>GeoScramble — Unscramble the World</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    --bg: #0a0a0f;
-    --surface: #13131a;
-    --surface2: #1c1c28;
-    --border: rgba(255,255,255,0.07);
-    --accent: #c8f560;
-    --accent-dim: rgba(200,245,96,0.12);
-    --text: #f0f0f5;
-    --muted: rgba(240,240,245,0.4);
-    --green: #22c55e;
-    --red: #ef4444;
-    --green-bg: rgba(34,197,94,0.1);
-    --red-bg: rgba(239,68,68,0.1);
-    --radius: 16px;
-  }
-
-  html, body {
-    height: 100%;
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'DM Sans', sans-serif;
-    -webkit-font-smoothing: antialiased;
-  }
-
-  body {
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-    background-image:
-      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(200,245,96,0.06) 0%, transparent 60%),
-      radial-gradient(ellipse 40% 30% at 80% 80%, rgba(100,80,255,0.05) 0%, transparent 60%);
-  }
-
-  /* NAV */
-  nav {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 20px 40px;
-    border-bottom: 1px solid var(--border);
-  }
-  .logo {
-    font-family: 'DM Serif Display', serif;
-    font-size: 1.25rem;
-    letter-spacing: -0.02em;
-  }
-  .logo span { color: var(--accent); }
-  .score-pill {
-    display: flex;
-    gap: 24px;
-    font-size: 0.78rem;
-    font-weight: 500;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
-  .score-pill strong {
-    color: var(--text);
-    font-family: 'DM Mono', monospace;
-    font-size: 0.9rem;
-  }
-
-  /* MAIN */
-  main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 40px 20px;
-    gap: 0;
-  }
-
-  .card {
-    width: 100%;
-    max-width: 560px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 24px;
-    overflow: hidden;
-    box-shadow: 0 40px 80px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.04) inset;
-  }
-
-  .card-header {
-    padding: 36px 40px 28px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .round-label {
-    font-size: 0.7rem;
-    font-weight: 500;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--accent);
-    margin-bottom: 12px;
-  }
-
-  .prompt {
-    font-family: 'DM Serif Display', serif;
-    font-size: 1rem;
-    color: var(--muted);
-    font-style: italic;
-    margin-bottom: 20px;
-  }
-
-  .scrambled {
-    font-family: 'DM Mono', monospace;
-    font-size: 2.8rem;
-    font-weight: 500;
-    letter-spacing: 0.18em;
-    color: var(--text);
-    word-break: break-all;
-    line-height: 1.1;
-  }
-
-  .card-body {
-    padding: 32px 40px 36px;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-  }
-
-  .hint-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 0.78rem;
-    color: var(--muted);
-    letter-spacing: 0.04em;
-  }
-  .hint-row svg { opacity: 0.5; }
-
-  .input-wrap {
-    position: relative;
-  }
-  input[type="text"] {
-    width: 100%;
-    background: var(--surface2);
-    border: 1.5px solid var(--border);
-    border-radius: 12px;
-    padding: 16px 20px;
-    font-family: 'DM Mono', monospace;
-    font-size: 1.3rem;
-    letter-spacing: 0.12em;
-    color: var(--text);
-    text-transform: uppercase;
-    outline: none;
-    transition: border-color 0.2s, box-shadow 0.2s;
-    caret-color: var(--accent);
-  }
-  input[type="text"]:focus {
-    border-color: rgba(200,245,96,0.4);
-    box-shadow: 0 0 0 3px rgba(200,245,96,0.06);
-  }
-  input[type="text"].correct {
-    border-color: var(--green) !important;
-    background: var(--green-bg);
-    box-shadow: 0 0 0 3px rgba(34,197,94,0.08) !important;
-  }
-  input[type="text"].wrong {
-    border-color: var(--red) !important;
-    background: var(--red-bg);
-    box-shadow: 0 0 0 3px rgba(239,68,68,0.08) !important;
-    animation: shake 0.35s ease;
-  }
-
-  @keyframes shake {
-    0%,100%{transform:translateX(0)}
-    20%{transform:translateX(-6px)}
-    40%{transform:translateX(6px)}
-    60%{transform:translateX(-4px)}
-    80%{transform:translateX(4px)}
-  }
-
-  .feedback-icon {
-    position: absolute;
-    right: 18px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 1.4rem;
-    opacity: 0;
-    transition: opacity 0.2s;
-    pointer-events: none;
-  }
-  .feedback-icon.show { opacity: 1; }
-
-  .actions {
-    display: flex;
-    gap: 12px;
-  }
-
-  .btn {
-    flex: 1;
-    padding: 14px;
-    border-radius: 12px;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 0.88rem;
-    font-weight: 500;
-    letter-spacing: 0.02em;
-    cursor: pointer;
-    border: none;
-    transition: all 0.18s;
-  }
-  .btn-primary {
-    background: var(--accent);
-    color: #0a0a0f;
-  }
-  .btn-primary:hover { background: #d6ff6e; transform: translateY(-1px); }
-  .btn-primary:active { transform: translateY(0); }
-
-  .btn-ghost {
-    background: transparent;
-    color: var(--muted);
-    border: 1.5px solid var(--border);
-  }
-  .btn-ghost:hover { border-color: rgba(255,255,255,0.2); color: var(--text); }
-
-  /* RESULT BANNER */
-  .result-banner {
-    display: none;
-    align-items: center;
-    gap: 12px;
-    padding: 14px 20px;
-    border-radius: 12px;
-    font-size: 0.88rem;
-    font-weight: 500;
-    animation: fadeUp 0.3s ease;
-  }
-  .result-banner.correct-banner {
-    display: flex;
-    background: var(--green-bg);
-    border: 1px solid rgba(34,197,94,0.25);
-    color: #4ade80;
-  }
-  .result-banner.wrong-banner {
-    display: flex;
-    background: var(--red-bg);
-    border: 1px solid rgba(239,68,68,0.25);
-    color: #f87171;
-  }
-  @keyframes fadeUp {
-    from { opacity:0; transform:translateY(6px); }
-    to   { opacity:1; transform:translateY(0); }
-  }
-
-  /* PROGRESS BAR */
-  .progress-track {
-    height: 3px;
-    background: var(--border);
-    border-radius: 100px;
-    margin: 0 40px;
-    overflow: hidden;
-  }
-  .progress-fill {
-    height: 100%;
-    background: var(--accent);
-    border-radius: 100px;
-    transition: width 0.4s ease;
-  }
-
-  /* FOOTER */
-  footer {
-    text-align: center;
-    padding: 24px;
-    font-size: 0.72rem;
-    color: var(--muted);
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-  }
-
-  /* SUMMARY SCREEN */
-  .summary {
-    display: none;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 16px;
-    padding: 48px 40px;
-  }
-  .summary.active { display: flex; }
-  .card.summary-mode .card-header,
-  .card.summary-mode .card-body,
-  .card.summary-mode .progress-track { display: none; }
-  .card.summary-mode .summary { display: flex; }
-
-  .summary-emoji { font-size: 3.5rem; }
-  .summary-title {
-    font-family: 'DM Serif Display', serif;
-    font-size: 2rem;
-  }
-  .summary-score {
-    font-family: 'DM Mono', monospace;
-    font-size: 1.1rem;
-    color: var(--accent);
-    letter-spacing: 0.08em;
-  }
-  .summary-sub { font-size: 0.85rem; color: var(--muted); line-height: 1.6; }
-</style>
-</head>
-<body>
-
-<nav>
-  <div class="logo">Geo<span>Scramble</span></div>
-  <div class="score-pill">
-    <span>Correct <strong id="correct-count">0</strong></span>
-    <span>Streak <strong id="streak-count">0</strong></span>
-    <span>Round <strong id="round-display">1/10</strong></span>
-  </div>
-</nav>
-
-<main>
-  <div class="card" id="game-card">
-
-    <div class="card-header">
-      <div class="round-label" id="round-label">Round 1 of 10</div>
-      <div class="prompt">Unscramble the country name</div>
-      <div class="scrambled" id="scrambled-word">NARFCE</div>
-    </div>
-
-    <div class="progress-track">
-      <div class="progress-fill" id="progress-fill" style="width:10%"></div>
-    </div>
-
-    <div class="card-body">
-      <div class="hint-row">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-        <span id="hint-text">Letters: 6</span>
-      </div>
-
-      <div class="input-wrap">
-        <input type="text" id="answer-input" placeholder="Type your answer…" autocomplete="off" spellcheck="false" />
-        <span class="feedback-icon" id="feedback-icon"></span>
-      </div>
-
-      <div class="result-banner" id="result-banner"></div>
-
-      <div class="actions">
-        <button class="btn btn-ghost" id="skip-btn">Skip</button>
-        <button class="btn btn-primary" id="submit-btn">Check Answer →</button>
-      </div>
-    </div>
-
-    <!-- Summary screen (hidden inside card) -->
-    <div class="summary" id="summary">
-      <div class="summary-emoji" id="summary-emoji">🌍</div>
-      <div class="summary-title" id="summary-title">Well played!</div>
-      <div class="summary-score" id="summary-score">8 / 10 correct</div>
-      <div class="summary-sub" id="summary-sub">You've got a great sense of geography.</div>
-      <button class="btn btn-primary" style="max-width:200px;margin-top:8px" id="restart-btn">Play Again</button>
-    </div>
-
-  </div>
-</main>
-
-<footer>GeoScramble &mdash; Test your world knowledge</footer>
-
-<script>
-const COUNTRIES = [
-  "AFGHANISTAN","ALBANIA","ALGERIA","ARGENTINA","AUSTRALIA","AUSTRIA","BANGLADESH","BELGIUM",
-  "BOLIVIA","BRAZIL","CAMBODIA","CANADA","CHILE","CHINA","COLOMBIA","CROATIA","CUBA","DENMARK",
-  "ECUADOR","EGYPT","ETHIOPIA","FINLAND","FRANCE","GERMANY","GHANA","GREECE","GUATEMALA",
-  "HONDURAS","HUNGARY","INDIA","INDONESIA","IRAN","IRAQ","IRELAND","ISRAEL","ITALY","JAMAICA",
-  "JAPAN","JORDAN","KAZAKHSTAN","KENYA","KUWAIT","LATVIA","LEBANON","LIBYA","LITHUANIA",
-  "MALAYSIA","MEXICO","MOROCCO","MOZAMBIQUE","MYANMAR","NEPAL","NETHERLANDS","NIGERIA","NORWAY",
-  "PAKISTAN","PANAMA","PARAGUAY","PERU","PHILIPPINES","POLAND","PORTUGAL","ROMANIA","RUSSIA",
-  "SAUDI ARABIA","SENEGAL","SERBIA","SINGAPORE","SOMALIA","SOUTH AFRICA","SPAIN","SRI LANKA",
-  "SWEDEN","SWITZERLAND","TANZANIA","THAILAND","TUNISIA","TURKEY","UGANDA","UKRAINE",
-  "UNITED KINGDOM","URUGUAY","VENEZUELA","VIETNAM","YEMEN","ZAMBIA","ZIMBABWE"
-];
-
-function shuffle(str) {
-  const arr = str.split('');
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  const result = arr.join('');
-  return result === str ? shuffle(str) : result;
-}
-
-function pickRound(n = 10) {
-  const pool = [...COUNTRIES].sort(() => Math.random() - 0.5).slice(0, n);
-  return pool.map(c => ({ answer: c, scrambled: shuffle(c) }));
-}
-
-let rounds = [], current = 0, correct = 0, streak = 0;
-
-const scrambledEl   = document.getElementById('scrambled-word');
-const inputEl       = document.getElementById('answer-input');
-const feedbackIcon  = document.getElementById('feedback-icon');
-const resultBanner  = document.getElementById('result-banner');
-const hintText      = document.getElementById('hint-text');
-const roundLabel    = document.getElementById('round-label');
-const roundDisplay  = document.getElementById('round-display');
-const progressFill  = document.getElementById('progress-fill');
-const correctCount  = document.getElementById('correct-count');
-const streakCount   = document.getElementById('streak-count');
-const submitBtn     = document.getElementById('submit-btn');
-const skipBtn       = document.getElementById('skip-btn');
-const gameCard      = document.getElementById('game-card');
-const summary       = document.getElementById('summary');
-
-function loadRound() {
-  const r = rounds[current];
-  scrambledEl.textContent = r.scrambled;
-  inputEl.value = '';
-  inputEl.className = '';
-  feedbackIcon.className = 'feedback-icon';
-  feedbackIcon.textContent = '';
-  resultBanner.className = 'result-banner';
-  resultBanner.textContent = '';
-  hintText.textContent = `Letters: ${r.answer.replace(/ /g,'').length}${r.answer.includes(' ') ? ' (two words)' : ''}`;
-  roundLabel.textContent = `Round ${current + 1} of ${rounds.length}`;
-  roundDisplay.textContent = `${current + 1}/${rounds.length}`;
-  progressFill.style.width = `${((current) / rounds.length) * 100}%`;
-  submitBtn.textContent = 'Check Answer →';
-  submitBtn.disabled = false;
-  inputEl.focus();
-}
-
-function showResult(isCorrect) {
-  const r = rounds[current];
-  inputEl.classList.add(isCorrect ? 'correct' : 'wrong');
-  feedbackIcon.textContent = isCorrect ? '✅' : '❌';
-  feedbackIcon.classList.add('show');
-
-  if (isCorrect) {
-    correct++;
-    streak++;
-    correctCount.textContent = correct;
-    streakCount.textContent = streak;
-    resultBanner.className = 'result-banner correct-banner';
-    resultBanner.innerHTML = `✅ &nbsp;Correct! <strong>${r.answer}</strong>`;
-  } else {
-    streak = 0;
-    streakCount.textContent = streak;
-    resultBanner.className = 'result-banner wrong-banner';
-    resultBanner.innerHTML = `❌ &nbsp;The answer was <strong>${r.answer}</strong>`;
-  }
-
-  submitBtn.textContent = current < rounds.length - 1 ? 'Next →' : 'See Results →';
-  submitBtn.disabled = false;
-}
-
-let answered = false;
-
-submitBtn.addEventListener('click', () => {
-  if (!answered) {
-    const guess = inputEl.value.trim().toUpperCase();
-    if (!guess) { inputEl.focus(); return; }
-    answered = true;
-    showResult(guess === rounds[current].answer);
-  } else {
-    answered = false;
-    current++;
-    if (current >= rounds.length) { showSummary(); return; }
-    loadRound();
-  }
-});
-
-skipBtn.addEventListener('click', () => {
-  if (answered) return;
-  answered = false;
-  streak = 0;
-  streakCount.textContent = streak;
-  resultBanner.className = 'result-banner wrong-banner';
-  resultBanner.innerHTML = `⏭ &nbsp;Skipped — answer was <strong>${rounds[current].answer}</strong>`;
-  answered = true;
-  submitBtn.textContent = current < rounds.length - 1 ? 'Next →' : 'See Results →';
-});
-
-inputEl.addEventListener('keydown', e => {
-  if (e.key === 'Enter') submitBtn.click();
-});
-
-function showSummary() {
-  progressFill.style.width = '100%';
-  gameCard.querySelector('.card-header').style.display = 'none';
-  gameCard.querySelector('.card-body').style.display = 'none';
-  gameCard.querySelector('.progress-track').style.display = 'none';
-  summary.style.display = 'flex';
-
-  const pct = correct / rounds.length;
-  const emoji = pct === 1 ? '🏆' : pct >= 0.7 ? '🌍' : pct >= 0.4 ? '🗺️' : '📍';
-  const title = pct === 1 ? 'Perfect score!' : pct >= 0.7 ? 'Well played!' : pct >= 0.4 ? 'Keep exploring!' : 'Time to travel more!';
-  const sub = pct === 1 ? 'You nailed every single country. Impressive.' : pct >= 0.7 ? "You've got a great sense of geography." : "Keep practising — the world is big!";
-
-  document.getElementById('summary-emoji').textContent = emoji;
-  document.getElementById('summary-title').textContent = title;
-  document.getElementById('summary-score').textContent = `${correct} / ${rounds.length} correct`;
-  document.getElementById('summary-sub').textContent = sub;
-}
-
-document.getElementById('restart-btn').addEventListener('click', () => {
-  correct = 0; streak = 0; current = 0; answered = false;
-  correctCount.textContent = 0; streakCount.textContent = 0;
-  rounds = pickRound(10);
-  gameCard.querySelector('.card-header').style.display = '';
-  gameCard.querySelector('.card-body').style.display = '';
-  gameCard.querySelector('.progress-track').style.display = '';
-  summary.style.display = 'none';
-  loadRound();
-});
-
-// Init
-rounds = pickRound(10);
-loadRound();
-</script>
-</body>
-</html>
+Line wrap
+	<!DOCTYPE html>
+	<html lang="en">
+	<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>GeoScramble — Unscramble the World</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+	<style>
+	*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+	
+	:root {
+	--bg: #0a0a0f;
+	--surface: #13131a;
+	--surface2: #1c1c28;
+	--border: rgba(255,255,255,0.07);
+	--accent: #c8f560;
+	--accent-dim: rgba(200,245,96,0.12);
+	--text: #f0f0f5;
+	--muted: rgba(240,240,245,0.4);
+	--green: #22c55e;
+	--red: #ef4444;
+	--green-bg: rgba(34,197,94,0.1);
+	--red-bg: rgba(239,68,68,0.1);
+	--radius: 16px;
+	}
+	
+	html, body {
+	height: 100%;
+	background: var(--bg);
+	color: var(--text);
+	font-family: 'DM Sans', sans-serif;
+	-webkit-font-smoothing: antialiased;
+	}
+	
+	body {
+	display: flex;
+	flex-direction: column;
+	min-height: 100vh;
+	background-image:
+	radial-gradient(ellipse 80% 50% at 50% -10%, rgba(200,245,96,0.06) 0%, transparent 60%),
+	radial-gradient(ellipse 40% 30% at 80% 80%, rgba(100,80,255,0.05) 0%, transparent 60%);
+	}
+	
+	/* NAV */
+	nav {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 20px 40px;
+	border-bottom: 1px solid var(--border);
+	}
+	.logo {
+	font-family: 'DM Serif Display', serif;
+	font-size: 1.25rem;
+	letter-spacing: -0.02em;
+	}
+	.logo span { color: var(--accent); }
+	.score-pill {
+	display: flex;
+	gap: 24px;
+	font-size: 0.78rem;
+	font-weight: 500;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--muted);
+	}
+	.score-pill strong {
+	color: var(--text);
+	font-family: 'DM Mono', monospace;
+	font-size: 0.9rem;
+	}
+	
+	/* MAIN */
+	main {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 40px 20px;
+	gap: 0;
+	}
+	
+	.card {
+	width: 100%;
+	max-width: 560px;
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: 24px;
+	overflow: hidden;
+	box-shadow: 0 40px 80px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.04) inset;
+	}
+	
+	.card-header {
+	padding: 36px 40px 28px;
+	border-bottom: 1px solid var(--border);
+	}
+	
+	.round-label {
+	font-size: 0.7rem;
+	font-weight: 500;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--accent);
+	margin-bottom: 12px;
+	}
+	
+	.prompt {
+	font-family: 'DM Serif Display', serif;
+	font-size: 1rem;
+	color: var(--muted);
+	font-style: italic;
+	margin-bottom: 20px;
+	}
+	
+	.scrambled {
+	font-family: 'DM Mono', monospace;
+	font-size: 2.8rem;
+	font-weight: 500;
+	letter-spacing: 0.18em;
+	color: var(--text);
+	word-break: break-all;
+	line-height: 1.1;
+	}
+	
+	.card-body {
+	padding: 32px 40px 36px;
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+	}
+	
+	.hint-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-size: 0.78rem;
+	color: var(--muted);
+	letter-spacing: 0.04em;
+	}
+	.hint-row svg { opacity: 0.5; }
+	
+	.input-wrap {
+	position: relative;
+	}
+	input[type="text"] {
+	width: 100%;
+	background: var(--surface2);
+	border: 1.5px solid var(--border);
+	border-radius: 12px;
+	padding: 16px 20px;
+	font-family: 'DM Mono', monospace;
+	font-size: 1.3rem;
+	letter-spacing: 0.12em;
+	color: var(--text);
+	text-transform: uppercase;
+	outline: none;
+	transition: border-color 0.2s, box-shadow 0.2s;
+	caret-color: var(--accent);
+	}
+	input[type="text"]:focus {
+	border-color: rgba(200,245,96,0.4);
+	box-shadow: 0 0 0 3px rgba(200,245,96,0.06);
+	}
+	input[type="text"].correct {
+	border-color: var(--green) !important;
+	background: var(--green-bg);
+	box-shadow: 0 0 0 3px rgba(34,197,94,0.08) !important;
+	}
+	input[type="text"].wrong {
+	border-color: var(--red) !important;
+	background: var(--red-bg);
+	box-shadow: 0 0 0 3px rgba(239,68,68,0.08) !important;
+	animation: shake 0.35s ease;
+	}
+	
+	@keyframes shake {
+	0%,100%{transform:translateX(0)}
+	20%{transform:translateX(-6px)}
+	40%{transform:translateX(6px)}
+	60%{transform:translateX(-4px)}
+	80%{transform:translateX(4px)}
+	}
+	
+	.feedback-icon {
+	position: absolute;
+	right: 18px;
+	top: 50%;
+	transform: translateY(-50%);
+	font-size: 1.4rem;
+	opacity: 0;
+	transition: opacity 0.2s;
+	pointer-events: none;
+	}
+	.feedback-icon.show { opacity: 1; }
+	
+	.actions {
+	display: flex;
+	gap: 12px;
+	}
+	
+	.btn {
+	flex: 1;
+	padding: 14px;
+	border-radius: 12px;
+	font-family: 'DM Sans', sans-serif;
+	font-size: 0.88rem;
+	font-weight: 500;
+	letter-spacing: 0.02em;
+	cursor: pointer;
+	border: none;
+	transition: all 0.18s;
+	}
+	.btn-primary {
+	background: var(--accent);
+	color: #0a0a0f;
+	}
+	.btn-primary:hover { background: #d6ff6e; transform: translateY(-1px); }
+	.btn-primary:active { transform: translateY(0); }
+	
+	.btn-ghost {
+	background: transparent;
+	color: var(--muted);
+	border: 1.5px solid var(--border);
+	}
+	.btn-ghost:hover { border-color: rgba(255,255,255,0.2); color: var(--text); }
+	
+	/* RESULT BANNER */
+	.result-banner {
+	display: none;
+	align-items: center;
+	gap: 12px;
+	padding: 14px 20px;
+	border-radius: 12px;
+	font-size: 0.88rem;
+	font-weight: 500;
+	animation: fadeUp 0.3s ease;
+	}
+	.result-banner.correct-banner {
+	display: flex;
+	background: var(--green-bg);
+	border: 1px solid rgba(34,197,94,0.25);
+	color: #4ade80;
+	}
+	.result-banner.wrong-banner {
+	display: flex;
+	background: var(--red-bg);
+	border: 1px solid rgba(239,68,68,0.25);
+	color: #f87171;
+	}
+	@keyframes fadeUp {
+	from { opacity:0; transform:translateY(6px); }
+	to { opacity:1; transform:translateY(0); }
+	}
+	
+	/* PROGRESS BAR */
+	.progress-track {
+	height: 3px;
+	background: var(--border);
+	border-radius: 100px;
+	margin: 0 40px;
+	overflow: hidden;
+	}
+	.progress-fill {
+	height: 100%;
+	background: var(--accent);
+	border-radius: 100px;
+	transition: width 0.4s ease;
+	}
+	
+	/* FOOTER */
+	footer {
+	text-align: center;
+	padding: 24px;
+	font-size: 0.72rem;
+	color: var(--muted);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	}
+	
+	/* SUMMARY SCREEN */
+	.summary {
+	display: none;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	gap: 16px;
+	padding: 48px 40px;
+	}
+	.summary.active { display: flex; }
+	.card.summary-mode .card-header,
+	.card.summary-mode .card-body,
+	.card.summary-mode .progress-track { display: none; }
+	.card.summary-mode .summary { display: flex; }
+	
+	.summary-emoji { font-size: 3.5rem; }
+	.summary-title {
+	font-family: 'DM Serif Display', serif;
+	font-size: 2rem;
+	}
+	.summary-score {
+	font-family: 'DM Mono', monospace;
+	font-size: 1.1rem;
+	color: var(--accent);
+	letter-spacing: 0.08em;
+	}
+	.summary-sub { font-size: 0.85rem; color: var(--muted); line-height: 1.6; }
+	
+	/* ── MOBILE ── */
+	@media (max-width: 600px) {
+	nav {
+	padding: 14px 16px;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 10px;
+	}
+	.logo { font-size: 1.1rem; }
+	.score-pill {
+	gap: 16px;
+	font-size: 0.72rem;
+	width: 100%;
+	}
+	
+	main {
+	padding: 16px 12px 24px;
+	justify-content: flex-start;
+	}
+	
+	.card {
+	border-radius: 18px;
+	}
+	
+	.card-header {
+	padding: 24px 20px 20px;
+	}
+	
+	.scrambled {
+	font-size: 2rem;
+	letter-spacing: 0.12em;
+	}
+	
+	.card-body {
+	padding: 20px 20px 24px;
+	gap: 16px;
+	}
+	
+	.progress-track {
+	margin: 0 20px;
+	}
+	
+	input[type="text"] {
+	font-size: 1.1rem;
+	padding: 14px 16px;
+	/* Prevent iOS zoom on focus (font-size must be >= 16px equivalent) */
+	font-size: 16px;
+	letter-spacing: 0.08em;
+	}
+	
+	.actions {
+	flex-direction: column-reverse;
+	gap: 10px;
+	}
+	
+	.btn {
+	padding: 15px;
+	font-size: 0.95rem;
+	}
+	
+	.result-banner {
+	font-size: 0.82rem;
+	padding: 12px 14px;
+	}
+	
+	.summary {
+	padding: 36px 24px;
+	gap: 14px;
+	}
+	.summary-title { font-size: 1.6rem; }
+	.summary-emoji { font-size: 3rem; }
+	
+	footer { padding: 16px; font-size: 0.68rem; }
+	}
+	
+	@media (max-width: 380px) {
+	.scrambled { font-size: 1.6rem; }
+	.score-pill { gap: 10px; font-size: 0.68rem; }
+	}
+	</style>
+	</head>
+	<body>
+	
+	<nav>
+	<div class="logo">Geo<span>Scramble</span></div>
+	<div class="score-pill">
+	<span>Correct <strong id="correct-count">0</strong></span>
+	<span>Streak <strong id="streak-count">0</strong></span>
+	<span>Round <strong id="round-display">1/10</strong></span>
+	</div>
+	</nav>
+	
+	<main>
+	<div class="card" id="game-card">
+	
+	<div class="card-header">
+	<div class="round-label" id="round-label">Round 1 of 10</div>
+	<div class="prompt">Unscramble the country name</div>
+	<div class="scrambled" id="scrambled-word">NARFCE</div>
+	</div>
+	
+	<div class="progress-track">
+	<div class="progress-fill" id="progress-fill" style="width:10%"></div>
+	</div>
+	
+	<div class="card-body">
+	<div class="hint-row">
+	<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+	<span id="hint-text">Letters: 6</span>
+	</div>
+	
+	<div class="input-wrap">
+	<input type="text" id="answer-input" placeholder="Type your answer…" autocomplete="off" spellcheck="false" />
+	<span class="feedback-icon" id="feedback-icon"></span>
+	</div>
+	
+	<div class="result-banner" id="result-banner"></div>
+	
+	<div class="actions">
+	<button class="btn btn-ghost" id="skip-btn">Skip</button>
+	<button class="btn btn-primary" id="submit-btn">Check Answer →</button>
+	</div>
+	</div>
+	
+	<!-- Summary screen (hidden inside card) -->
+	<div class="summary" id="summary">
+	<div class="summary-emoji" id="summary-emoji">🌍</div>
+	<div class="summary-title" id="summary-title">Well played!</div>
+	<div class="summary-score" id="summary-score">8 / 10 correct</div>
+	<div class="summary-sub" id="summary-sub">You've got a great sense of geography.</div>
+	<button class="btn btn-primary" style="max-width:200px;margin-top:8px" id="restart-btn">Play Again</button>
+	</div>
+	
+	</div>
+	</main>
+	
+	<footer>GeoScramble &mdash; Test your world knowledge</footer>
+	
+	<script>
+	const COUNTRIES = [
+	"AFGHANISTAN","ALBANIA","ALGERIA","ARGENTINA","AUSTRALIA","AUSTRIA","BANGLADESH","BELGIUM",
+	"BOLIVIA","BRAZIL","CAMBODIA","CANADA","CHILE","CHINA","COLOMBIA","CROATIA","CUBA","DENMARK",
+	"ECUADOR","EGYPT","ETHIOPIA","FINLAND","FRANCE","GERMANY","GHANA","GREECE","GUATEMALA",
+	"HONDURAS","HUNGARY","INDIA","INDONESIA","IRAN","IRAQ","IRELAND","ISRAEL","ITALY","JAMAICA",
+	"JAPAN","JORDAN","KAZAKHSTAN","KENYA","KUWAIT","LATVIA","LEBANON","LIBYA","LITHUANIA",
+	"MALAYSIA","MEXICO","MOROCCO","MOZAMBIQUE","MYANMAR","NEPAL","NETHERLANDS","NIGERIA","NORWAY",
+	"PAKISTAN","PANAMA","PARAGUAY","PERU","PHILIPPINES","POLAND","PORTUGAL","ROMANIA","RUSSIA",
+	"SAUDI ARABIA","SENEGAL","SERBIA","SINGAPORE","SOMALIA","SOUTH AFRICA","SPAIN","SRI LANKA",
+	"SWEDEN","SWITZERLAND","TANZANIA","THAILAND","TUNISIA","TURKEY","UGANDA","UKRAINE",
+	"UNITED KINGDOM","URUGUAY","VENEZUELA","VIETNAM","YEMEN","ZAMBIA","ZIMBABWE"
+	];
+	
+	function shuffle(str) {
+	const arr = str.split('');
+	for (let i = arr.length - 1; i > 0; i--) {
+	const j = Math.floor(Math.random() * (i + 1));
+	[arr[i], arr[j]] = [arr[j], arr[i]];
+	}
+	const result = arr.join('');
+	return result === str ? shuffle(str) : result;
+	}
+	
+	function pickRound(n = 10) {
+	const pool = [...COUNTRIES].sort(() => Math.random() - 0.5).slice(0, n);
+	return pool.map(c => ({ answer: c, scrambled: shuffle(c) }));
+	}
+	
+	let rounds = [], current = 0, correct = 0, streak = 0;
+	
+	const scrambledEl = document.getElementById('scrambled-word');
+	const inputEl = document.getElementById('answer-input');
+	const feedbackIcon = document.getElementById('feedback-icon');
+	const resultBanner = document.getElementById('result-banner');
+	const hintText = document.getElementById('hint-text');
+	const roundLabel = document.getElementById('round-label');
+	const roundDisplay = document.getElementById('round-display');
+	const progressFill = document.getElementById('progress-fill');
+	const correctCount = document.getElementById('correct-count');
+	const streakCount = document.getElementById('streak-count');
+	const submitBtn = document.getElementById('submit-btn');
+	const skipBtn = document.getElementById('skip-btn');
+	const gameCard = document.getElementById('game-card');
+	const summary = document.getElementById('summary');
+	
+	function loadRound() {
+	const r = rounds[current];
+	scrambledEl.textContent = r.scrambled;
+	inputEl.value = '';
+	inputEl.className = '';
+	feedbackIcon.className = 'feedback-icon';
+	feedbackIcon.textContent = '';
+	resultBanner.className = 'result-banner';
+	resultBanner.textContent = '';
+	hintText.textContent = `Letters: ${r.answer.replace(/ /g,'').length}${r.answer.includes(' ') ? ' (two words)' : ''}`;
+	roundLabel.textContent = `Round ${current + 1} of ${rounds.length}`;
+	roundDisplay.textContent = `${current + 1}/${rounds.length}`;
+	progressFill.style.width = `${((current) / rounds.length) * 100}%`;
+	submitBtn.textContent = 'Check Answer →';
+	submitBtn.disabled = false;
+	inputEl.focus();
+	}
+	
+	function showResult(isCorrect) {
+	const r = rounds[current];
+	inputEl.classList.add(isCorrect ? 'correct' : 'wrong');
+	feedbackIcon.textContent = isCorrect ? '✅' : '❌';
+	feedbackIcon.classList.add('show');
+	
+	if (isCorrect) {
+	correct++;
+	streak++;
+	correctCount.textContent = correct;
+	streakCount.textContent = streak;
+	resultBanner.className = 'result-banner correct-banner';
+	resultBanner.innerHTML = `✅ &nbsp;Correct! <strong>${r.answer}</strong>`;
+	} else {
+	streak = 0;
+	streakCount.textContent = streak;
+	resultBanner.className = 'result-banner wrong-banner';
+	resultBanner.innerHTML = `❌ &nbsp;The answer was <strong>${r.answer}</strong>`;
+	}
+	
+	submitBtn.textContent = current < rounds.length - 1 ? 'Next →' : 'See Results →';
+	submitBtn.disabled = false;
+	}
+	
+	let answered = false;
+	
+	submitBtn.addEventListener('click', () => {
+	if (!answered) {
+	const guess = inputEl.value.trim().toUpperCase();
+	if (!guess) { inputEl.focus(); return; }
+	answered = true;
+	showResult(guess === rounds[current].answer);
+	} else {
+	answered = false;
+	current++;
+	if (current >= rounds.length) { showSummary(); return; }
+	loadRound();
+	}
+	});
+	
+	skipBtn.addEventListener('click', () => {
+	if (answered) return;
+	answered = false;
+	streak = 0;
+	streakCount.textContent = streak;
+	resultBanner.className = 'result-banner wrong-banner';
+	resultBanner.innerHTML = `⏭ &nbsp;Skipped — answer was <strong>${rounds[current].answer}</strong>`;
+	answered = true;
+	submitBtn.textContent = current < rounds.length - 1 ? 'Next →' : 'See Results →';
+	});
+	
+	inputEl.addEventListener('keydown', e => {
+	if (e.key === 'Enter') submitBtn.click();
+	});
+	
+	function showSummary() {
+	progressFill.style.width = '100%';
+	gameCard.querySelector('.card-header').style.display = 'none';
+	gameCard.querySelector('.card-body').style.display = 'none';
+	gameCard.querySelector('.progress-track').style.display = 'none';
+	summary.style.display = 'flex';
+	
+	const pct = correct / rounds.length;
+	const emoji = pct === 1 ? '🏆' : pct >= 0.7 ? '🌍' : pct >= 0.4 ? '🗺️' : '📍';
+	const title = pct === 1 ? 'Perfect score!' : pct >= 0.7 ? 'Well played!' : pct >= 0.4 ? 'Keep exploring!' : 'Time to travel more!';
+	const sub = pct === 1 ? 'You nailed every single country. Impressive.' : pct >= 0.7 ? "You've got a great sense of geography." : "Keep practising — the world is big!";
+	
+	document.getElementById('summary-emoji').textContent = emoji;
+	document.getElementById('summary-title').textContent = title;
+	document.getElementById('summary-score').textContent = `${correct} / ${rounds.length} correct`;
+	document.getElementById('summary-sub').textContent = sub;
+	}
+	
+	document.getElementById('restart-btn').addEventListener('click', () => {
+	correct = 0; streak = 0; current = 0; answered = false;
+	correctCount.textContent = 0; streakCount.textContent = 0;
+	rounds = pickRound(10);
+	gameCard.querySelector('.card-header').style.display = '';
+	gameCard.querySelector('.card-body').style.display = '';
+	gameCard.querySelector('.progress-track').style.display = '';
+	summary.style.display = 'none';
+	loadRound();
+	});
+	
+	// Init
+	rounds = pickRound(10);
+	loadRound();
+	</script>
+	</body>
+	</html>
+	
